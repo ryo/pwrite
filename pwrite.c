@@ -110,20 +110,24 @@ main(int argc, char *argv[])
 	if (rw)
 		printf("orig: ");
 
-	switch (rwsize) {
-	case 1:
-		printf("*0x%lx = 0x%02lx\n", address, value);
-		break;
-	case 2:
-		printf("*0x%lx = 0x%04lx\n", address, value);
-		break;
-	case 4:
-		printf("*0x%lx = 0x%08lx\n", address, value);
-		break;
-	case 8:
-	default:
-		printf("*0x%lx = 0x%016lx\n", address, value);
-		break;
+	if (value == 0) {
+		printf("*0x%lx = 0\n", address);
+	} else {
+		switch (rwsize) {
+		case 1:
+			printf("*0x%lx = 0x%02lx\n", address, value);
+			break;
+		case 2:
+			printf("*0x%lx = 0x%04lx\n", address, value);
+			break;
+		case 4:
+			printf("*0x%lx = 0x%08lx\n", address, value);
+			break;
+		case 8:
+		default:
+			printf("*0x%lx = 0x%016lx\n", address, value);
+			break;
+		}
 	}
 
 	if (rw) {
