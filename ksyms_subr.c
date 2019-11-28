@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
+#define _PATH_CAT	"/bin/cat"
 #define _PATH_NM	"/usr/bin/nm"
 #define _PATH_SORT	"/usr/bin/sort"
 
@@ -123,12 +125,24 @@ int
 ksyms_load(void)
 {
 	FILE *fh;
-	char cmdline[512];	/* "/usr/bin/nm /dev/ksyms | sort" */
+	char tmpfile1[512];
+	char tmpfile2[512];
+	char cmdline[512];	/* "/bin/cat /dev/ksyms > /tmp/$$.2; /usr/bin/nm /tmp/$$.2 | sort > $$.2" */
 	char linebuf[1024];
+	pid_t pid = getpid();
 
-	snprintf(cmdline, sizeof(cmdline), "%s %s | %s", _PATH_NM, _PATH_KSYMS, _PATH_SORT);
+	snprintf(tmpfile1, sizeof(tmpfile1), "/tmp/softintdump.tmp1.%u", pid);
+	snprintf(tmpfile2, sizeof(tmpfile2), "/tmp/softintdump.tmp2.%u", pid);
+	snprintf(cmdline, sizeof(cmdline), "%s %s > %s; %s %s | %s > %s", _PATH_CAT, _PATH_KSYMS, tmpfile1, _PATH_NM, tmpfile1, _PATH_SORT, tmpfile2);
 
-	fh = popen(cmdline, "r");
+	/* XXX */
+	system(cmdline);
+	unlink(tmpfile1);
+	fh = fopen(tmpfile2, "r");
+	unlink(tmpfile2);
+
+	if (fh == NULL)
+		return -1;
 
 	while (fgets(linebuf, sizeof(linebuf), fh) != NULL) {
 #define MAXPARAMS	8
@@ -168,7 +182,7 @@ main(int argc, char *argv[])
 {
 	ksyms_load();
 
-	printf("%s\n", ksyms_lookupsym(0xffffffff815c9b88ULL));
+	printf("%s\n", ksyms_lookupsym(0xffffffff80e38440ULL));
 	printf("0x%llx\n", ksyms_lookup("sigill_debug"));
 
 }
