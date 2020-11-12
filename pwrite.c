@@ -39,23 +39,45 @@ main(int argc, char *argv[])
 {
 	extern char *optarg;
 	extern int optind;
+
 	char *devmem;
 	int rw, ch, fd, kmem;
 	size_t rwsize;
-	uintptr_t address;
-	uint64_t value, newvalue;
 	ssize_t rc;
+	uintptr_t address;
+	uint64_t value64, ovalue64;
+	uint32_t value32, ovalue32;
+	uint16_t value16, ovalue16;
+	uint8_t value8, ovalue8;
+	void *valuep, *ovaluep;
 
+	/* default value */
 	kmem = 1;
 	rwsize = 4;
+	valuep = &value32;
+	ovaluep = &ovalue32;
 
 	while ((ch = getopt(argc, argv, "1248kp")) != -1) {
 		switch (ch) {
 		case '1':
+			valuep = &value8;
+			ovaluep = &ovalue8;
+			rwsize = 1;
+			break;
 		case '2':
+			valuep = &value16;
+			ovaluep = &ovalue16;
+			rwsize = 2;
+			break;
 		case '4':
+			valuep = &value32;
+			ovaluep = &ovalue32;
+			rwsize = 4;
+			break;
 		case '8':
-			rwsize = ch - '0';
+			valuep = &value64;
+			ovaluep = &ovalue64;
+			rwsize = 8;
 			break;
 		case 'k':
 			kmem = 1;
@@ -86,7 +108,8 @@ main(int argc, char *argv[])
 	switch (argc) {
 	case 2:
 		rw = 1;
-		newvalue = strtoull(argv[1], NULL, 16);
+		value8 = value16 = value32 = value64 =
+		    strtoull(argv[1], NULL, 16);
 		break;
 	case 1:
 		rw = 0;
@@ -101,8 +124,8 @@ main(int argc, char *argv[])
 		err(EX_OSERR, "open: %s", devmem);
 	}
 
-	value = 0;
-	rc = pread(fd, (void *)&value, rwsize, (off_t)address);
+	ovalue8 = ovalue16 = ovalue32 = ovalue64 = 0;
+	rc = pread(fd, ovaluep, rwsize, (off_t)address);
 	if (rc != rwsize) {
 		err(EX_OSERR, "read");
 	}
@@ -110,35 +133,34 @@ main(int argc, char *argv[])
 	if (rw)
 		printf("orig: ");
 
-	if (value == 0) {
+	if (value64 == 0) {
 		printf("*0x%lx = 0\n", address);
 	} else {
 		switch (rwsize) {
 		case 1:
-			printf("*0x%lx = 0x%02lx\n", address, value);
+			printf("*0x%lx = 0x%02x\n", address, ovalue8);
 			break;
 		case 2:
-			printf("*0x%lx = 0x%04lx\n", address, value);
+			printf("*0x%lx = 0x%04x\n", address, ovalue16);
 			break;
 		case 4:
-			printf("*0x%lx = 0x%08lx\n", address, value);
+			printf("*0x%lx = 0x%08x\n", address, ovalue32);
 			break;
 		case 8:
 		default:
-			printf("*0x%lx = 0x%016lx\n", address, value);
+			printf("*0x%lx = 0x%016lx\n", address, ovalue64);
 			break;
 		}
 	}
 
 	if (rw) {
-		rc = pwrite(fd, (void *)&newvalue, rwsize, (off_t)address);
-		if (rc != rwsize) {
+		rc = pwrite(fd, valuep, rwsize, (off_t)address);
+		if (rc != rwsize)
 			err(EX_OSERR, "write");
-		}
 
 		/* verify */
-		value = 0;
-		rc = pread(fd, (void *)&value, rwsize, (off_t)address);
+		value8 = value16 = value32 = value64 = 0;
+		rc = pread(fd, valuep, rwsize, (off_t)address);
 		if (rc != rwsize) {
 			err(EX_OSERR, "read");
 		}
@@ -146,17 +168,17 @@ main(int argc, char *argv[])
 		printf("new:  ");
 		switch (rwsize) {
 		case 1:
-			printf("*0x%lx = 0x%02lx\n", address, value);
+			printf("*0x%lx = 0x%02x\n", address, value8);
 			break;
 		case 2:
-			printf("*0x%lx = 0x%04lx\n", address, value);
+			printf("*0x%lx = 0x%04x\n", address, value16);
 			break;
 		case 4:
-			printf("*0x%lx = 0x%08lx\n", address, value);
+			printf("*0x%lx = 0x%08x\n", address, value32);
 			break;
 		case 8:
 		default:
-			printf("*0x%lx = 0x%016lx\n", address, value);
+			printf("*0x%lx = 0x%016lx\n", address, value64);
 			break;
 		}
 	}
